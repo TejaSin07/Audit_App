@@ -8,7 +8,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-
 @Service
 @RequiredArgsConstructor
 public class AuditHistoryService {
@@ -21,19 +20,26 @@ public class AuditHistoryService {
             AuditHistoryType action,
             String remarks) {
 
-        String user =
-                SecurityContextHolder.getContext()
-                        .getAuthentication().getName();
+        String performedBy = getActor();
 
         AuditHistory history = AuditHistory.builder()
                 .referenceId(refId)
                 .referenceType(refType)
                 .action(action)
-                .performedBy(user)
+                .performedBy(performedBy)
                 .remarks(remarks)
                 .performedAt(LocalDateTime.now())
                 .build();
 
         repository.save(history);
+    }
+
+    private String getActor() {
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            return "SYSTEM";
+        }
+        return SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
     }
 }

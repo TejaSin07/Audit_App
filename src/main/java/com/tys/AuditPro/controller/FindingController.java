@@ -1,12 +1,17 @@
 package com.tys.AuditPro.controller;
 
+import com.tys.AuditPro.domain.audit.Audit;
 import com.tys.AuditPro.domain.finding.*;
 import com.tys.AuditPro.domain.history.AuditHistoryType;
+import com.tys.AuditPro.dto.CreateFindingRequest;
+import com.tys.AuditPro.repository.AuditRepository;
 import com.tys.AuditPro.repository.FindingRepository;
 import com.tys.AuditPro.rules.RuleContext;
 import com.tys.AuditPro.rules.RuleEngine;
 import com.tys.AuditPro.rules.RuleEvent;
+import com.tys.AuditPro.service.AuditAuthorizationService;
 import com.tys.AuditPro.service.AuditHistoryService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,51 +28,45 @@ public class FindingController {
 
     private final FindingRepository findingRepository;
     private final AuditHistoryService auditHistoryService;
-    private final RuleEngine ruleEngine;   // ✅ NEW
+    private final RuleEngine ruleEngine;
+    private final AuditRepository auditRepository;
+    private final AuditAuthorizationService auditAuthorizationService;
 
-    // 1️⃣ Create finding (USER)
+
+    /**
+     * 1️⃣ Create finding (USER)
+     */
     @PostMapping("/audit/{auditId}")
     @PreAuthorize("hasRole('USER')")
     public Finding createFinding(
             @PathVariable Long auditId,
-            @RequestBody Finding finding) {
+            @Valid @RequestBody CreateFindingRequest request) {
+
+        Audit audit = auditRepository.findById(auditId).orElseThrow();
+
+        auditAuthorizationService.checkUserAccess(audit);
 
         String auditor =
                 SecurityContextHolder.getContext()
                         .getAuthentication().getName();
 
-        finding.setAuditId(auditId);
-        finding.setStatus(FindingStatus.OPEN);
-        finding.setCreatedBy(auditor);
-        finding.setCreatedAt(LocalDateTime.now());
+        Finding finding = Finding.builder()
+                .auditId(auditId)
+                .title(request.getTitle())
+                .description(request.getDescription())
+                .severity(request.getSeverity())
+                .status(FindingStatus.OPEN)
+                .createdBy(auditor)
+                .createdAt(LocalDateTime.now())
+                .build();
 
-        // ✅ Save finding first
-        Finding saved = findingRepository.save(finding);
-
-        // ✅ Audit history (business action)
-        auditHistoryService.log(
-                saved.getId(),
-                "FINDING",
-                AuditHistoryType.FINDING_CREATED,
-                "Finding created"
-        );
-
-        // ✅ RULE ENGINE TRIGGER (THIS WAS MISSING EARLIER)
-        ruleEngine.fire(
-                RuleContext.builder()
-                        .event(RuleEvent.FINDING_CREATED)
-                        .data(Map.of(
-                                "findingId", saved.getId(),
-                                "auditId", saved.getAuditId(),
-                                "severity", saved.getSeverity().name()
-                        ))
-                        .build()
-        );
-
-        return saved;
+        return findingRepository.save(finding);
     }
 
-    // 2️⃣ Start finding (USER)
+
+    /**
+     * 2️⃣ Start working on finding (USER)
+     */
     @PutMapping("/{id}/start")
     @PreAuthorize("hasRole('USER')")
     public Finding startFinding(@PathVariable Long id) {
@@ -89,7 +88,9 @@ public class FindingController {
         return saved;
     }
 
-    // 3️⃣ Resolve finding (USER)
+    /**
+     * 3️⃣ Resolve finding (USER)
+     */
     @PutMapping("/{id}/resolve")
     @PreAuthorize("hasRole('USER')")
     public Finding resolveFinding(@PathVariable Long id) {
@@ -111,7 +112,9 @@ public class FindingController {
         return saved;
     }
 
-    // 4️⃣ Approve finding (MANAGER)
+    /**
+     * 4️⃣ Approve finding (MANAGER)
+     */
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasRole('MANAGER')")
     public Finding approveFinding(@PathVariable Long id) {
@@ -138,7 +141,9 @@ public class FindingController {
         return saved;
     }
 
-    // 5️⃣ Reject finding (MANAGER)
+    /**
+     * 5️⃣ Reject finding (MANAGER)
+     */
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasRole('MANAGER')")
     public Finding rejectFinding(@PathVariable Long id) {
@@ -165,7 +170,9 @@ public class FindingController {
         return saved;
     }
 
-    // 6️⃣ View findings (USER / MANAGER)
+    /**
+     * 6️⃣ View findings for an audit (USER / MANAGER)
+     */
     @GetMapping("/audit/{auditId}")
     @PreAuthorize("hasAnyRole('USER','MANAGER')")
     public List<Finding> getFindings(@PathVariable Long auditId) {

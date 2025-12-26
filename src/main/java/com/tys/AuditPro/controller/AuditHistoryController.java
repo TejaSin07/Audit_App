@@ -15,14 +15,21 @@ public class AuditHistoryController {
 
     private final AuditHistoryRepository repository;
 
-    @GetMapping("/{type}/{id}")
-    @PreAuthorize("hasAnyRole('USER','MANAGER')")
+    /**
+     * View history for a specific reference
+     * referenceType: AUDIT | FINDING | RULE
+     * referenceId  : auditId / findingId
+     */
+    @GetMapping("/{referenceType}/{referenceId}")
+    @PreAuthorize("hasRole('MANAGER')")   // 🔒 tightened
     public List<AuditHistory> getHistory(
-            @PathVariable String type,
-            @PathVariable Long id) {
+            @PathVariable String referenceType,
+            @PathVariable Long referenceId) {
 
         return repository
                 .findByReferenceIdAndReferenceTypeOrderByPerformedAtAsc(
-                        id, type.toUpperCase());
+                        referenceId,
+                        referenceType.toUpperCase()
+                );
     }
 }
