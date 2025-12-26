@@ -1,0 +1,18 @@
+package com.tys.AuditPro.domain.history;
+
+public enum AuditHistoryType {
+
+    AUDIT_CREATED,
+    AUDIT_ASSIGNED,
+    AUDIT_STARTED,
+    AUDIT_SUBMITTED,
+    AUDIT_APPROVED,
+    AUDIT_CLOSED,
+
+    FINDING_CREATED,
+    FINDING_UPDATED,
+    FINDING_APPROVED,
+    FINDING_REJECTED,
+
+    RULE_EXECUTED
+}
