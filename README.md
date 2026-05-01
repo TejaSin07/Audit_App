@@ -1,5 +1,3 @@
-# AuditPro - Audit Application
-
 A Spring Boot-based audit application designed to provide comprehensive audit tracking, management, and security features for enterprise applications.
 
 ## 📋 Project Overview
